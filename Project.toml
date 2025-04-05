@@ -1,0 +1,20 @@
+name = "REPLChronicle"
+uuid = "cfe4a0ce-ebf2-4427-9237-f5cc4ba2b2fe"
+version = "0.1.0"
+authors = ["TEC <git@tecosaur.net>"]
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+JuliaSyntaxHighlighting = "ac6e5ff7-fb65-4e79-a425-ec3bc9c03011"
+Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
+REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
+StyledStrings = "f489334b-da3d-4c2e-b8f0-e476e12c162b"
+
+[compat]
+Dates = "1.11.0"
+JuliaSyntaxHighlighting = "1.12.0"
+Mmap = "1.11.0"
+PrecompileTools = "1.2"
+REPL = "1.11.0"
+StyledStrings = "1.11.0"
