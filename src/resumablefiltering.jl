@@ -39,7 +39,7 @@ seperator '{repl_history_search_seperator:$FILTER_SEPARATOR}',
 
 const FILTER_HELP_QUERY = "?"
 
-function ConditionSet(spec::S) where {S <: AbstractString}
+function ConditionSet(spec::S) where {S<:AbstractString}
     function addcond!(condset::ConditionSet, cond::SubString)
         if startswith(cond, '!')
             push!(condset.negatives, @view cond[2:end])
@@ -71,7 +71,7 @@ function ConditionSet(spec::S) where {S <: AbstractString}
         elseif chr == '\\'
             escaped = true
         elseif chr == FILTER_SEPARATOR
-            addcond!(cset, SubString(spec, mark:pos - 1))
+            addcond!(cset, SubString(spec, mark:pos-1))
             mark = pos + 1
         end
         pos = nextind(spec, pos)
@@ -83,20 +83,14 @@ function ConditionSet(spec::S) where {S <: AbstractString}
 end
 
 function ismorestrict(a::ConditionSet, b::ConditionSet)
-    length(a.fuzzy) == length(b.fuzzy) &&
-        all(splat(==), zip(a.fuzzy, b.fuzzy)) || return false
-    length(a.regexps) == length(b.regexps) &&
-        all(splat(==), zip(a.regexps, b.regexps)) || return false
-    length(a.modes) == length(b.modes) &&
-        all(splat(==), zip(a.modes, b.modes)) || return false
-    length(a.exacts) >= length(b.exacts) &&
-        all(splat(occursin), zip(b.exacts, a.exacts)) || return false
-    length(a.words) >= length(b.words) &&
-        all(splat(occursin), zip(b.words, a.words)) || return false
-    length(a.negatives) >= length(b.negatives) &&
-        all(splat(occursin), zip(a.negatives, b.negatives)) || return false
-    length(a.initialisms) >= length(b.initialisms) &&
-        all(splat(occursin), zip(b.initialisms, a.initialisms)) || return false
+    length(a.fuzzy) == length(b.fuzzy) && all(splat(==), zip(a.fuzzy, b.fuzzy)) || return false
+    length(a.regexps) == length(b.regexps) && all(splat(==), zip(a.regexps, b.regexps)) || return false
+    length(a.modes) == length(b.modes) && all(splat(==), zip(a.modes, b.modes)) || return false
+    length(a.exacts) >= length(b.exacts) && all(splat(occursin), zip(b.exacts, a.exacts)) || return false
+    length(a.words) >= length(b.words) && all(splat(occursin), zip(b.words, a.words)) || return false
+    length(a.negatives) >= length(b.negatives) && all(splat(occursin), zip(a.negatives, b.negatives)) || return false
+    length(a.initialisms) >= length(b.initialisms) && all(splat(occursin), zip(b.initialisms, a.initialisms)) ||
+        return false
     true
 end
 
@@ -122,14 +116,18 @@ function FilterSpec(cset::ConditionSet)
         push!(spec.regexps, Regex(rx))
     end
     for itlsm in cset.initialisms
-        rx = Regex(join((string("\\Q", ltr, "\\E\\w+?") for ltr in itlsm), "\\s+"),
-                   ifelse(any(isuppercase, itlsm), "", "i"))
+        rx = Regex(
+            join((string("\\Q", ltr, "\\E\\w+?") for ltr in itlsm), "\\s+"),
+            ifelse(any(isuppercase, itlsm), "", "i"),
+        )
         push!(spec.regexps, rx)
     end
     for fuzz in cset.fuzzy
         for word in eachsplit(fuzz)
-            rx = Regex(join((string("\\Q", ltr, "\\E\\w*?") for ltr in word), "\\s+"),
-                       ifelse(any(isuppercase, fuzz), "", "i"))
+            rx = Regex(
+                join((string("\\Q", ltr, "\\E\\w*?") for ltr in word), "\\s+"),
+                ifelse(any(isuppercase, fuzz), "", "i"),
+            )
             push!(spec.regexps, rx)
         end
     end
@@ -139,9 +137,14 @@ function FilterSpec(cset::ConditionSet)
     spec
 end
 
-function filterchunkrev!(out::Vector{HistEntry}, candidates::DenseVector{HistEntry},
-                         spec::FilterSpec, idx::Int = length(candidates);
-                         maxtime::Float64 = Inf, maxresults::Int = length(candidates))
+function filterchunkrev!(
+    out::Vector{HistEntry},
+    candidates::DenseVector{HistEntry},
+    spec::FilterSpec,
+    idx::Int = length(candidates);
+    maxtime::Float64 = Inf,
+    maxresults::Int = length(candidates),
+)
     batchsize = clamp(length(candidates) ÷ 512, 10, 1000)
     for batch in Iterators.partition(idx:-1:1, batchsize)
         time() > maxtime && break
@@ -159,7 +162,7 @@ function filterchunkrev!(out::Vector{HistEntry}, candidates::DenseVector{HistEnt
             end
             matchfail && continue
             for text in spec.negatives
-                if occursin(text, entry.content) 
+                if occursin(text, entry.content)
                     matchfail = true
                     break
                 end

@@ -1,47 +1,62 @@
 const PROMPT_TEXT = "▪: "
+const KEY_UP_ARROW = "\e[A"
+const KEY_CTRL_P = "^P"
+const KEY_DOWN_ARROW = "\e[B"
+const KEY_CTRL_N = "^N"
+const KEY_TAB = '\t'
+const KEY_PAGE_UP = "\e[5~"
+const KEY_PAGE_DOWN = "\e[6~"
+const KEY_META_LT = "\e<"
+const KEY_META_GT = "\e>"
+const KEY_CTRL_C = "^C"
+const KEY_CTRL_D = "^D"
+const KEY_CTRL_S = "^S"
 
 function select_keymap(events::Channel{Symbol})
     REPL.LineEdit.keymap([
-        Dict{Any, Any}(
+        Dict{Any,Any}(
             # Up Arrow
-            "\e[A" => (_...) -> (push!(events, :uparrow); :ignore),
-            "^P" => (_...) -> (push!(events, :uparrow); :ignore),
+            KEY_UP_ARROW => (_...) -> (push!(events, :moveup); :ignore),
+            KEY_CTRL_P => (_...) -> (push!(events, :moveup); :ignore),
             # Down Arrow
-            "\e[B" => (_...) -> (push!(events, :downarrow); :ignore),
-            "^N" => (_...) -> (push!(events, :downarrow); :ignore),
+            KEY_DOWN_ARROW => (_...) -> (push!(events, :movedown); :ignore),
+            KEY_CTRL_N => (_...) -> (push!(events, :movedown); :ignore),
             # Tab
-            '\t' => (_...) -> (push!(events, :tab); :ignore),
+            KEY_TAB => (_...) -> (push!(events, :tab); :ignore),
             # Page up
-            "\e[5~" => (_...) -> (push!(events, :pageup); :ignore),
+            KEY_PAGE_UP => (_...) -> (push!(events, :pageup); :ignore),
             # Page down
-            "\e[6~" => (_...) -> (push!(events, :pagedown); :ignore),
+            KEY_PAGE_DOWN => (_...) -> (push!(events, :pagedown); :ignore),
             # Meta + < / >
-            "\e<" => (_...) -> (push!(events, :jumpfirst); :ignore),
-            "\e>" => (_...) -> (push!(events, :jumplast); :ignore),
+            KEY_META_LT => (_...) -> (push!(events, :jumpfirst); :ignore),
+            KEY_META_GT => (_...) -> (push!(events, :jumplast); :ignore),
             # Exits
-            "^C" => Returns(:abort),
-            "^D" => Returns(:abort),
-            "^S" => Returns(:save),
+            KEY_CTRL_C => Returns(:abort),
+            KEY_CTRL_D => Returns(:abort),
+            KEY_CTRL_S => Returns(:save),
         ),
         REPL.LineEdit.default_keymap,
-        REPL.LineEdit.escape_defaults])
+        REPL.LineEdit.escape_defaults,
+    ])
 end
 
 function create_prompt(events::Channel{Symbol})
-    term = REPL.Terminals.TTYTerminal(
-        get(ENV, "TERM", Sys.iswindows() ? "" : "dumb"),
-        stdin, stdout, stderr)
+    term = REPL.Terminals.TTYTerminal(get(ENV, "TERM", Sys.iswindows() ? "" : "dumb"), stdin, stdout, stderr)
     prompt = REPL.LineEdit.Prompt(
         PROMPT_TEXT, # prompt
-        "\e[90m", "\e[0m", # prompt_prefix, prompt_suffix
-        "", "", "", # output_prefix, output_prefix_prefix, output_prefix_suffix
+        "\e[90m",
+        "\e[0m", # prompt_prefix, prompt_suffix
+        "",
+        "",
+        "", # output_prefix, output_prefix_prefix, output_prefix_suffix
         select_keymap(events), # keymap_dict
         nothing, # repl
         REPL.LatexCompletions(), # complete
         _ -> true, # on_enter
         () -> nothing, # on_done
         REPL.LineEdit.EmptyHistoryProvider(), # hist
-        false) # sticky
+        false,
+    ) # sticky
     interface = REPL.LineEdit.ModalInterface([prompt])
     istate = REPL.LineEdit.init_state(term, interface)
     pstate = istate.mode_state[prompt]
@@ -70,8 +85,7 @@ function runprompt!((; term, prompt, pstate, istate), events::Channel{Symbol})
                 break
             elseif status === :save
                 print("\e[1G\e[J")
-                REPL.LineEdit.raw!(term, false) &&
-                    REPL.LineEdit.disable_bracketed_paste(term)
+                REPL.LineEdit.raw!(term, false) && REPL.LineEdit.disable_bracketed_paste(term)
                 push!(events, :save)
                 break
             else
@@ -80,7 +94,6 @@ function runprompt!((; term, prompt, pstate, istate), events::Channel{Symbol})
             end
         end
     finally
-        REPL.LineEdit.raw!(term, false) &&
-            REPL.LineEdit.disable_bracketed_paste(term)
+        REPL.LineEdit.raw!(term, false) && REPL.LineEdit.disable_bracketed_paste(term)
     end
 end

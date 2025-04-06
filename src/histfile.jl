@@ -29,7 +29,7 @@ function update!(hist::HistoryFile)
         read(io)
     end
     function findnext(data::Vector{UInt8}, index::Int, byte::UInt8, limit::Int = length(data))
-        for i in index:limit
+        for i = index:limit
             data[i] == byte && return i
         end
         limit
@@ -37,7 +37,7 @@ function update!(hist::HistoryFile)
     function isstrmatch(data::Vector{UInt8}, at::Int, str::String)
         at + ncodeunits(str) <= length(data) || return false
         for (i, byte) in enumerate(codeunits(str))
-            data[at + i - 1] == byte || return false
+            data[at+i-1] == byte || return false
         end
         true
     end
@@ -65,13 +65,16 @@ function update!(hist::HistoryFile)
             valend = findnext(bytes, pos, UInt8('\n'))
             pos = valend + 1
             if isstrmatch(bytes, metastart, "mode:")
-                mode = if isstrmatch(bytes, valstart, "julia") && bytes[valstart + ncodeunits("julia")] ∈ (UInt8('\n'), UInt8('\r'))
-                    :julia
-                elseif isstrmatch(bytes, valstart, "help") && bytes[valstart + ncodeunits("help")] ∈ (UInt8('\n'), UInt8('\r'))
-                    :help
-                else
-                    Symbol(bytes[valstart:valend-1])
-                end
+                mode =
+                    if isstrmatch(bytes, valstart, "julia") &&
+                       bytes[valstart+ncodeunits("julia")] ∈ (UInt8('\n'), UInt8('\r'))
+                        :julia
+                    elseif isstrmatch(bytes, valstart, "help") &&
+                           bytes[valstart+ncodeunits("help")] ∈ (UInt8('\n'), UInt8('\r'))
+                        :help
+                    else
+                        Symbol(bytes[valstart:valend-1])
+                    end
             elseif isstrmatch(bytes, metastart, "time:")
                 valend = min(valend, valstart + ncodeunits("0000-00-00 00:00:00"))
                 timestr = String(bytes[valstart:valend-1]) # It would be nice to avoid the string, but oh well

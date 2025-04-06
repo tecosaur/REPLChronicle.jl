@@ -9,13 +9,17 @@ end
 
 const EMPTY_STATE = SelectorState((0, 0), "", [], 0, [], 0)
 
-STATES = Pair{SelectorState, SelectorState}[]
+STATES = Pair{SelectorState,SelectorState}[]
 
-Base.copy(s::SelectorState) =
-    SelectorState(s.area, s.query, copy(s.candidates), s.scroll, copy(s.selected), s.hover)
+Base.copy(s::SelectorState) = SelectorState(s.area, s.query, copy(s.candidates), s.scroll, copy(s.selected), s.hover)
 
-function redisplay_all(io::IO, oldstate::SelectorState, newstate::SelectorState, pstate::REPL.LineEdit.PromptState;
-                       buf::IOContext{IOBuffer} = IOContext(IOBuffer(), io))
+function redisplay_all(
+    io::IO,
+    oldstate::SelectorState,
+    newstate::SelectorState,
+    pstate::REPL.LineEdit.PromptState;
+    buf::IOContext{IOBuffer} = IOContext(IOBuffer(), io),
+)
     # Calculate dimensions
     oldrows = componentrows(oldstate)
     newrows = componentrows(newstate)
@@ -31,16 +35,16 @@ function redisplay_all(io::IO, oldstate::SelectorState, newstate::SelectorState,
             oldstate = EMPTY_STATE
         end
         if oldstate.candidates != newstate.candidates ||
-            oldstate.area.width != newstate.area.width ||
-            oldstate.scroll != newstate.scroll ||
-            oldstate.selected != newstate.selected ||
-            oldstate.hover != newstate.hover
+           oldstate.area.width != newstate.area.width ||
+           oldstate.scroll != newstate.scroll ||
+           oldstate.selected != newstate.selected ||
+           oldstate.hover != newstate.hover
             redisplay_candidates(buf, oldstate, oldrows.candidates, newstate, newrows.candidates)
             currentrow += newrows.candidates
         end
         if (@view oldstate.candidates[oldstate.selected]) != (@view newstate.candidates[newstate.selected]) ||
-            gethover(oldstate) != gethover(newstate) ||
-            oldstate.area.width != newstate.area.width
+           gethover(oldstate) != gethover(newstate) ||
+           oldstate.area.width != newstate.area.width
             redisplay_preview(buf, oldstate, oldrows.preview, newstate, newrows.preview)
             currentrow += (newrows.preview - 1)
         end
@@ -79,12 +83,7 @@ end
 
 const BASE_MODE = :julia
 
-const MODE_FACES = Dict(
-    :julia => :green,
-    :shell => :red,
-    :pkg => :blue,
-    :help => :yellow,
-)
+const MODE_FACES = Dict(:julia => :green, :shell => :red, :pkg => :blue, :help => :yellow)
 
 function redisplay_prompt(io::IO, _::SelectorState, newstate::SelectorState, pstate::REPL.LineEdit.PromptState)
     hov = gethover(newstate)
@@ -101,13 +100,15 @@ function redisplay_prompt(io::IO, _::SelectorState, newstate::SelectorState, pst
     qpos = position(pstate.input_buffer)
     kindname = ""
     patend = 0
-    for (name, substrs) in (("words", styconds.words),
-                            ("exact", styconds.exacts),
-                            ("negative", styconds.negatives),
-                            ("initialism", styconds.initialisms),
-                            ("regexp", styconds.regexps),
-                            ("fuzzy", styconds.fuzzy),
-                            ("mode", styconds.modes))
+    for (name, substrs) in (
+        ("words", styconds.words),
+        ("exact", styconds.exacts),
+        ("negative", styconds.negatives),
+        ("initialism", styconds.initialisms),
+        ("regexp", styconds.regexps),
+        ("fuzzy", styconds.fuzzy),
+        ("mode", styconds.modes),
+    )
         for substr in substrs
             start, len = substr.offset, substr.ncodeunits
             patend = max(patend, start + len)
@@ -119,12 +120,11 @@ function redisplay_prompt(io::IO, _::SelectorState, newstate::SelectorState, pst
                     face!(styquery[start-1:start-1], :repl_history_search_seperator)
                 end
             elseif start > 0
-                face!(styquery[start:start],
-                      if query[start] == FILTER_SEPARATOR
-                          :repl_history_search_seperator
-                      else
-                          :repl_history_search_prefix
-                      end)
+                face!(styquery[start:start], if query[start] == FILTER_SEPARATOR
+                    :repl_history_search_seperator
+                else
+                    :repl_history_search_prefix
+                end)
             end
             isempty(kindname) || continue
             if start <= qpos <= start + len
@@ -163,7 +163,7 @@ function redisplay_prompt(io::IO, _::SelectorState, newstate::SelectorState, pst
     else
         suffix = S""
     end
-    print(io, prefix, styquery, ' ' ^ padspaces, suffix, resultnum)
+    print(io, prefix, styquery, ' '^padspaces, suffix, resultnum)
 end
 
 const LIST_MARKERS = (
@@ -186,42 +186,55 @@ function redisplay_candidates(io::IO, oldstate::SelectorState, oldrows::Int, new
     thisline = 1
     oldoffset = max(0, length(oldstate.candidates) - oldrows - oldstate.scroll)
     newoffset = max(0, length(newstate.candidates) - newrows - newstate.scroll)
-    oldcands = @view oldstate.candidates[max(begin, begin+oldoffset):min(end, begin + oldoffset + newrows - 1)]
-    newcands = @view newstate.candidates[max(begin, begin+newoffset):min(end, begin + newoffset + newrows - 1)]
+    oldcands = @view oldstate.candidates[max(begin, begin + oldoffset):min(end, begin + oldoffset + newrows - 1)]
+    newcands = @view newstate.candidates[max(begin, begin + newoffset):min(end, begin + newoffset + newrows - 1)]
     for (i, (old, new)) in enumerate(zip(oldcands, newcands))
         oldidx = i + oldoffset
         newidx = i + newoffset
         # I'm sorry about how awful this condition is, I did my best.
         if old == new &&
-            (oldidx ∈ oldstate.selected) == (newidx ∈ newstate.selected) &&
-            ishover(oldstate, oldidx) == ishover(newstate, newidx) &&
-            (oldstate.area.width == newstate.area.width ||
-             (textwidth(old.content) <= oldstate.area.width
-              && !isnewhover))
+           (oldidx ∈ oldstate.selected) == (newidx ∈ newstate.selected) &&
+           ishover(oldstate, oldidx) == ishover(newstate, newidx) &&
+           (
+               oldstate.area.width == newstate.area.width ||
+               (textwidth(old.content) <= oldstate.area.width && !isnewhover)
+           )
             println(io)
             thisline += 1
             continue
         end
-        print_candidate(io, new, newstate.area.width;
-                        selected = newidx ∈ newstate.selected,
-                        hover = ishover(newstate, newidx))
+        print_candidate(
+            io,
+            new,
+            newstate.area.width;
+            selected = newidx ∈ newstate.selected,
+            hover = ishover(newstate, newidx),
+        )
         thisline = i + 1
     end
     for (i, new) in enumerate(newcands)
         i <= length(oldstate.candidates) && continue
         newidx = i + newoffset
-        print_candidate(io, new, newstate.area.width;
-                        selected = newidx ∈ newstate.selected,
-                        hover = newidx == hovidx(newstate))
+        print_candidate(
+            io,
+            new,
+            newstate.area.width;
+            selected = newidx ∈ newstate.selected,
+            hover = newidx == hovidx(newstate),
+        )
         thisline = i + 1
     end
-    for _ in thisline:newrows
+    for _ = thisline:newrows
         print(io, "\e[K ", LIST_MARKERS.pending, '\n')
     end
 end
 
 function print_candidate(io::IO, cand::HistEntry, width::Int; selected::Bool, hover::Bool)
-    print(io, ' ', if selected LIST_MARKERS.selected else LIST_MARKERS.unselected end, ' ')
+    print(io, ' ', if selected
+        LIST_MARKERS.selected
+    else
+        LIST_MARKERS.unselected
+    end, ' ')
     candstr = if cand.mode === :julia
         highlight_squashlines(cand.content, width - 4)
     else
@@ -245,8 +258,7 @@ end
 const NEWLINE_MARKER = "↩ "
 const LINE_ELLIPSIS = S"{shadow:…}"
 
-rtruncpad(s::AbstractString, width::Int) =
-    rpad(rtruncate(s, width, LINE_ELLIPSIS), width)
+rtruncpad(s::AbstractString, width::Int) = rpad(rtruncate(s, width, LINE_ELLIPSIS), width)
 
 """
     highlight_squashlines(code::String, maxwidth::Int)
@@ -269,7 +281,7 @@ function highlight_squashlines(code::String, maxwidth::Int)
     while true
         nlpos = findnext('\n', code, bytepos)
         isnothing(nlpos) && break
-        skipstr = @view code[bytepos:thisind(code, nlpos-1)]
+        skipstr = @view code[bytepos:thisind(code, nlpos - 1)]
         write(flatstr, skipstr)
         width += ncodeunits(skipstr)
         width > maxwidth && break
@@ -296,8 +308,8 @@ function highlight_squashlines(code::String, maxwidth::Int)
         start, stop = first(annot.region), last(annot.region)
         start_offset = last(offsets[findlast(<=(start) ∘ first, offsets)::Int])
         start_offset > bytepos && continue
-        stop_offset  = last(offsets[findlast(<=(stop) ∘ first, offsets)::Int])
-        push!(annots, Base.setindex(annot, (start + start_offset):(stop + stop_offset), :region))
+        stop_offset = last(offsets[findlast(<=(stop) ∘ first, offsets)::Int])
+        push!(annots, Base.setindex(annot, (start+start_offset):(stop+stop_offset), :region))
     end
     append!(annots, nlannots)
     rtruncate(AnnotatedString(String(take!(flatstr)), annots), maxwidth, LINE_ELLIPSIS)
@@ -313,8 +325,9 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
     end
     bar = S"{shadow:│}"
     innerwidth = newstate.area.width - 2
-    midline = '─' ^ innerwidth
-    if oldstate.area.width != newstate.area.width || (oldstate.area.height - oldrows) != (newstate.area.height - newrows)
+    midline = '─'^innerwidth
+    if oldstate.area.width != newstate.area.width ||
+       (oldstate.area.height - oldrows) != (newstate.area.height - newrows)
         println(io, S"{shadow:╭$(midline)╮}")
     else
         println(io)
@@ -326,8 +339,7 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
     lastunchanged = 0
     if oldrows == newrows
         for (old, new) in zip(oldstate.selected, newstate.selected)
-            if oldstate.candidates[old] == newstate.candidates[new] &&
-                ishover(oldstate, old) == ishover(newstate, new)
+            if oldstate.candidates[old] == newstate.candidates[new] && ishover(oldstate, old) == ishover(newstate, new)
                 lastunchanged += 1
             else
                 break
@@ -336,8 +348,7 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
     end
     lastchanged = length(newstate.selected)
     for (old, new) in zip(Iterators.reverse(oldstate.selected), Iterators.reverse(newstate.selected))
-        if oldstate.candidates[old] == newstate.candidates[new] &&
-            ishover(oldstate, old) == ishover(newstate, new)
+        if oldstate.candidates[old] == newstate.candidates[new] && ishover(oldstate, old) == ishover(newstate, new)
             lastchanged -= 1
         else
             break
@@ -353,33 +364,40 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
             hovcontent = highlightcand(hovcand)
             hovlines = 1 + count('\n', hovcontent)
             for line in eachsplit(hovcontent, '\n')
-                hline = rtruncpad(S"{light:$line}", innerwidth-2)
+                hline = rtruncpad(S"{light:$line}", innerwidth - 2)
                 println(io, bar, ' ', hline, ' ', bar)
                 linesprinted += 1
                 linesprinted == newrows - 2 - (hovlines > newrows - 2) && break
             end
             if hovlines > newrows - 2
-                println(io, bar, ' ', rtruncpad(S"{julia_comment:⋮ {italic:$(hovlines - newrows + 2) lines hidden}}", innerwidth-2), ' ', bar)
+                println(
+                    io,
+                    bar,
+                    ' ',
+                    rtruncpad(S"{julia_comment:⋮ {italic:$(hovlines - newrows + 2) lines hidden}}", innerwidth - 2),
+                    ' ',
+                    bar,
+                )
                 linesprinted += 1
             end
         end
-        for _ in linesprinted:(newrows - 3)
+        for _ = linesprinted:(newrows-3)
             println(io, bar, ' '^innerwidth, bar)
         end
     elseif slines <= newrows - 2
         for (i, sel) in enumerate(newstate.selected)
             if i <= lastunchanged
-                print(io, '\n' ^ selection_lines[i])
+                print(io, '\n'^selection_lines[i])
                 continue
             end
             codehl = highlightcand(newstate.candidates[sel])
             for line in eachsplit(codehl, '\n')
-                line = rtruncpad(line, innerwidth-2)
+                line = rtruncpad(line, innerwidth - 2)
                 ishover(newstate, sel) && face!(line, :region)
                 println(io, bar, ' ', line, ' ', bar)
             end
         end
-        for _ in slines:(newrows - 3)
+        for _ = slines:(newrows-3)
             println(io, bar, ' '^innerwidth, bar)
         end
     else
@@ -389,7 +407,7 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
         for (i, sel) in enumerate(newstate.selected)
             if i <= lastunchanged
                 nlclamp = min(selection_lines[i], nlinesabove - printedabove)
-                print(io, '\n' ^ nlclamp)
+                print(io, '\n'^nlclamp)
                 printedabove += nlclamp
                 continue
             end
@@ -397,17 +415,24 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
             for line in eachsplit(codehl, '\n')
                 printedabove >= nlinesabove && break
                 ishover(newstate, sel) && face!(line, :region)
-                println(io, bar, ' ', rtruncpad(line, innerwidth-2), ' ', bar)
+                println(io, bar, ' ', rtruncpad(line, innerwidth - 2), ' ', bar)
                 printedabove += 1
             end
         end
-        println(io, bar, ' ', rtruncpad(S"{julia_comment:⋮ {italic:$(slines - newrows + 3) lines hidden}}", innerwidth-2), ' ', bar)
+        println(
+            io,
+            bar,
+            ' ',
+            rtruncpad(S"{julia_comment:⋮ {italic:$(slines - newrows + 3) lines hidden}}", innerwidth - 2),
+            ' ',
+            bar,
+        )
         linesbelow = SubString{AnnotatedString{String}}[]
         for (i, sel) in enumerate(Iterators.reverse(newstate.selected))
             idx = length(newstate.selected) - i + 1
             if idx > lastchanged
                 nlclamp = min(selection_lines[idx], nlinesbelow - length(linesbelow))
-                for _ in 1:nlclamp
+                for _ = 1:nlclamp
                     push!(linesbelow, SubString(S""))
                 end
                 continue
@@ -417,7 +442,7 @@ function redisplay_preview(io::IO, oldstate::SelectorState, oldrows::Int, newsta
             for line in Iterators.reverse(lines)
                 length(linesbelow) >= nlinesbelow && break
                 ishover(newstate, sel) && face!(line, :region)
-                push!(linesbelow, rtruncpad(line, innerwidth-2))
+                push!(linesbelow, rtruncpad(line, innerwidth - 2))
             end
         end
         for line in Iterators.reverse(linesbelow)

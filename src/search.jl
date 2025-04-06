@@ -20,7 +20,7 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
     state = SelectorState(outsize, "", hist, 0, [], 1)
     redisplay_all(out, EMPTY_STATE, state, pstate; buf)
     # Candidate cache
-    cands_cache = Pair{ConditionSet{String}, Vector{HistEntry}}[]
+    cands_cache = Pair{ConditionSet{String},Vector{HistEntry}}[]
     cands_cachestate = zero(UInt8)
     cands_current = HistEntry[]
     cands_cond = ConditionSet{String}()
@@ -30,7 +30,9 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
     filter_spec = FilterSpec([], [], [], [])
     # Event loop
     while true
-        event = @lock events if !isempty(events) take!(events) end
+        event = @lock events if !isempty(events)
+            take!(events)
+        end
         if isnothing(event)
         elseif event === :abort
             print(out, "\e[1G\e[J")
@@ -38,8 +40,8 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
         elseif event === :confirm
             print(out, "\e[1G\e[J")
             return state
-        elseif event ∈ (:uparrow, :downarrow, :pageup, :pagedown)
-            prevstate, state = state, movehover(state, event ∈ (:uparrow, :pageup), event ∈ (:pageup, :pagedown))
+        elseif event ∈ (:moveup, :movedown, :pageup, :pagedown)
+            prevstate, state = state, movehover(state, event ∈ (:moveup, :pageup), event ∈ (:pageup, :pagedown))
             redisplay_all(out, prevstate, state, pstate; buf)
             continue
         elseif event === :tab
@@ -52,8 +54,7 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
                 redisplay_all(out, state, state, pstate; buf)
                 continue
             end
-            prevstate, state = state, SelectorState(
-                outsize, query, [], 0, [], 1)
+            prevstate, state = state, SelectorState(outsize, query, [], 0, [], 1)
             if query == FILTER_HELP_QUERY
                 redisplay_all(out, prevstate, state, pstate; buf)
                 continue
@@ -68,12 +69,14 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
             end
             filter_spec = FilterSpec(cands_cond)
             filter_idx = filterchunkrev!(
-                state.candidates, cands_current, filter_spec;
+                state.candidates,
+                cands_current,
+                filter_spec;
                 maxtime = time() + 0.01,
-                maxresults = outsize[1] ÷ 2)
+                maxresults = outsize[1] ÷ 2,
+            )
             if filter_idx == 0
-                cands_cachestate = addcache!(
-                    cands_cache, cands_cachestate, cands_cond => state.candidates)
+                cands_cachestate = addcache!(cands_cache, cands_cachestate, cands_cond => state.candidates)
             end
             redisplay_all(out, prevstate, state, pstate; buf)
             continue
@@ -82,24 +85,19 @@ function run_display!((; term, pstate), events::Channel{Symbol}, hist::Vector{Hi
         end
         if displaysize(out) != outsize
             outsize = displaysize(out)
-            prevstate, state = state, SelectorState(
-                outsize, state.query, state.candidates,
-                state.scroll, state.selected, state.hover)
+            prevstate, state =
+                state, SelectorState(outsize, state.query, state.candidates, state.scroll, state.selected, state.hover)
             redisplay_all(out, prevstate, state, pstate; buf)
             continue
         end
         if filter_idx != 0
             maxtime = time() + 0.01
             append!(empty!(cands_temp), state.candidates)
-            prevstate = SelectorState(
-                state.area, state.query, cands_temp, state.scroll,
-                state.selected, state.hover)
-            filter_idx = filterchunkrev!(
-                state.candidates, cands_current, filter_spec, filter_idx;
-                maxtime = time() + 0.01)
+            prevstate = SelectorState(state.area, state.query, cands_temp, state.scroll, state.selected, state.hover)
+            filter_idx =
+                filterchunkrev!(state.candidates, cands_current, filter_spec, filter_idx; maxtime = time() + 0.01)
             if filter_idx == 0
-                cands_cachestate = addcache!(
-                    cands_cache, cands_cachestate, cands_cond => state.candidates)
+                cands_cachestate = addcache!(cands_cache, cands_cachestate, cands_cond => state.candidates)
             end
             redisplay_all(out, prevstate, state, pstate; buf)
             continue
@@ -123,9 +121,7 @@ function movehover(state::SelectorState, backwards::Bool, page::Bool)
     shift = ifelse(backwards, 1, -1) * ifelse(page, max(1, candrows - 1), 1)
     newhover = clamp(state.hover + shift, 1, length(state.candidates))
     newscroll = clamp(state.scroll, newhover - candrows, newhover - 1)
-    SelectorState(
-        state.area, state.query, state.candidates,
-        newscroll, state.selected, newhover)
+    SelectorState(state.area, state.query, state.candidates, newscroll, state.selected, newhover)
 end
 
 """
@@ -143,9 +139,7 @@ function toggleselection(state::SelectorState)
     else
         deleteat!(newselection, first(selsearch))
     end
-    newstate = SelectorState(
-        state.area, state.query, state.candidates,
-        state.scroll, newselection, state.hover)
+    newstate = SelectorState(state.area, state.query, state.candidates, state.scroll, newselection, state.hover)
     movehover(newstate, false, false)
 end
 
@@ -168,9 +162,9 @@ function addcache!(cache::Vector{T}, state::Unsigned, new::T) where {T}
         push!(cache, new)
         return nextstate
     end
-    for b in 1:(maxsize - 1)
+    for b = 1:(maxsize-1)
         iszero(shift & (0x1 << (maxsize - b))) && continue
-        cache[b - uninitialised] = cache[b - uninitialised + 1]
+        cache[b-uninitialised] = cache[b-uninitialised+1]
     end
     cache[end] = new
     nextstate
